@@ -1,0 +1,43 @@
+#@data/values
+---
+tanzunet:
+  username: username
+  password: 'password'
+ingress:
+  domain: your.domain # In case you want to use a subdomain(e.g. tap.aws.example.com) of your configured hosted zone(e.g. aws.example.com), you have to change the "--domain-filter=" argument value for the external-dns Deployment in the ingress-config/external-dns.yaml to the hosted zone domain(e.g. aws.example.com) instead of the variable value (which is the subdomain)!
+  contour_tls_namespace: tanzu-system-ingress
+  contour_tls_secret: contour-tls-delegation-cert
+container_registry:
+  hostname: eu.gcr.io
+  project: your-gcp-project
+  project_workload: supply-chain-artifacts-folder-name
+  username: _json_key
+  password: |
+    {
+      "type": "service_account",
+      "project_id": "gco-project-id",
+      "private_key_id": "abcdefhg4564984",
+      "private_key": "PRIVATE_KEY",
+      "client_email": "",
+      "client_id": "",
+      "auth_uri": "",
+      "token_uri": "",
+      "auth_provider_x509_cert_url": "",
+      "client_x509_cert_url": ""
+    }
+
+tap_gui:
+  github_token: yourgithubtoken
+
+developer_namespace: wine-cellar
+# acme:
+#   email: user@example.com
+# aws:
+#   region: eu-central-1
+#   credentials: # Note internal VMware users: CloudGate credentials will not have the necessary permissions to work
+#     accessKey: 
+#     secretKey: 
+#   route_fifty_three_zone_id:
+google:
+  region: europe-west1-c
+  cloud_dns_zone_id: tap-dezitter-cloud

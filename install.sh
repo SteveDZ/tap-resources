@@ -1,0 +1,65 @@
+script_dir="$(cd $(dirname "$BASH_SOURCE[0]") && pwd)"
+
+values_file_default="${script_dir}/values.yaml"
+values_file=${VALUES_FILE:-$values_file_default}
+
+export INSTALL_REGISTRY_HOSTNAME=registry.tanzu.vmware.com
+export INSTALL_REGISTRY_USERNAME=$(yq '.tanzunet.username' < "${values_file}")
+export INSTALL_REGISTRY_PASSWORD=$(yq '.tanzunet.password' < "${values_file}")
+
+DEVELOPER_NAMESPACE=$(yq '.developer_namespace' < "${values_file}")
+
+# ytt -f "${script_dir}/tap-values.yaml" -f "${values_file}" --ignore-unknown-comments > "${generated_dir}/tap-values.yaml"
+ytt -f "values-template.yaml" -f "values.yaml" --ignore-unknown-comments > "tap-values.yaml"
+
+tanzu package install tap \
+  --namespace tap-install \
+  --package-name tap.tanzu.vmware.com \
+  --version 1.1.0 \
+  --values-file "tap-values.yaml"
+
+# Use HTTPS instead of HTTP in the output of the application URL
+kubectl annotate packageinstalls tap \
+  --namespace tap-install \
+  --overwrite \
+  ext.packaging.carvel.dev/ytt-paths-from-secret-name.0=tap-pkgi-overlay-0-cnrs-network-config
+
+# install external dns
+# check that the namespace set in .ingress.contour_tls_namespace already exists
+contour_tls_namespace=$(yq '.ingress.contour_tls_namespace' < "${values_file}")
+kubectl get namespace | cut -d' ' -f1 | grep -E "^${contour_tls_namespace}$" || exit 2
+
+# kapp deploy \
+#   --app external-dns \
+#   --namespace tap-install \
+#   --file <(\
+#      ytt --ignore-unknown-comments -f values.yaml -f ${script_dir}/ingress-config/external-dns \
+#   ) \
+#   --yes
+
+# kapp deploy \
+#   --app lets-encrypt-issuer \
+#   --namespace tap-install \
+#   --file <(\
+#      ytt --ignore-unknown-comments -f values.yaml -f ${script_dir}/ingress-config/lets-encrypt-issuer \
+#   ) \
+#   --yes
+
+# kapp deploy \
+#   --app certificates \
+#   --namespace tap-install \
+#   --file <(\
+#      ytt --ignore-unknown-comments -f values.yaml -f ${script_dir}/ingress-config/certificates \
+#   ) \
+#   --yes
+
+# kapp deploy \
+#   --app ingress \
+#   --namespace tap-install \
+#   --file <(\
+#      ytt --ignore-unknown-comments -f values.yaml -f ${script_dir}/ingress-config/ingress \
+#   ) \
+#   --yes
+
+# configure initial developer namespace
+"${script_dir}/configure-dev-space.sh" "$DEVELOPER_NAMESPACE"
